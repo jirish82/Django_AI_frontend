@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
+from ai_services.ai_query import query_ai_sync
 
 def login_view(request):
     if request.method == 'POST':
@@ -26,9 +27,10 @@ def conversation_api(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         user_message = data.get('message', '')
+        file_paths = data.get('file_paths')
         
-        # Always respond with "hello"
-        ai_response = "hello"
+        # Query the AI using the new functionality
+        ai_response = query_ai_sync(user_message, file_paths)
         
         return JsonResponse({'response': ai_response})
     

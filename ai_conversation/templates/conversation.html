@@ -65,6 +65,7 @@
             data: {
                 messages: [],
                 userInput: '',
+                filePaths: '',
                 isProcessing: false
             },
             methods: {
@@ -74,7 +75,12 @@
                     this.messages.push({sender: 'user', text: this.userInput});
                     this.isProcessing = true;
                     
-                    axios.post('/ai/api/conversation/', {message: this.userInput}, {
+                    const filePathsArray = this.filePaths.split(',').map(path => path.trim()).filter(path => path !== '');
+                    
+                    axios.post('/ai/api/conversation/', {
+                        message: this.userInput,
+                        file_paths: filePathsArray.length > 0 ? filePathsArray : null
+                    }, {
                         headers: {
                             'X-CSRFToken': this.getCookie('csrftoken')
                         }
@@ -90,6 +96,7 @@
                         });
                     
                     this.userInput = '';
+                    this.filePaths = '';
                 },
                 scrollToBottom() {
                     this.$nextTick(() => {
