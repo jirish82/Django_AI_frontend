@@ -1,11 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Conversation</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        #app {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #e6f3ff;
+            text-align: right;
+        }
+        .ai-message {
+            background-color: #f0f0f0;
+        }
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .input-container {
+            display: flex;
+        }
+        #user-input {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to AI Conversation</h1>
-    <p>This is a blank page accessible after logging in.</p>
-    <a href="{% url 'logout' %}">Logout</a>
+    <div id="app">
+        <h1>AI Conversation</h1>
+        <a href="{% url 'logout' %}">Logout</a>
+        <div class="chat-container" ref="chatContainer">
+            <div v-for="(message, index) in messages" :key="index" :class="['message', message.sender === 'user' ? 'user-message' : 'ai-message']">
+                [[ message.text ]]
+            </div>
+            <div v-if="isProcessing" class="message ai-message">
+                Processing...
+            </div>
+        </div>
+        <div class="input-container">
+            <input type="text" id="user-input" v-model="userInput" @keyup.enter="sendMessage" placeholder="Type your message...">
+            <button @click="sendMessage">Send</button>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            delimiters: ['[[', ']]'],
+            data: {
+                messages: [],
+                userInput: '',
+                isProcessing: false
+            },
+            methods: {
+                sendMessage() {
+                    if (this.userInput.trim() === '') return;
+                    
+                    this.messages.push({sender: 'user', text: this.userInput});
+                    this.isProcessing = true;
+                    
+                    axios.post('/api/conversation/', {message: this.userInput})
+                        .then(response => {
+                            this.messages.push({sender: 'ai', text: response.data.response});
+                            this.isProcessing = false;
+                            this.scrollToBottom();
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            this.isProcessing = false;
+                        });
+                    
+                    this.userInput = '';
+                },
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        this.$refs.chatContainer.scrollTop = this.$refs.chatContainer.scrollHeight;
+                    });
+                }
+            }
+        });
+    </script>
 </body>
 </html>
