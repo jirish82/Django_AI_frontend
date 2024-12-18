@@ -30,7 +30,7 @@ def conversation_api(request):
         file_paths = data.get('file_paths')
         
         # Query the AI using the new functionality
-        ai_response = query_ai_sync(user_message, file_paths)
+        ai_response = query_ai_sync(user_message, file_paths, online_search=True)
         
         return JsonResponse({'response': ai_response})
     
