@@ -74,7 +74,11 @@
                     this.messages.push({sender: 'user', text: this.userInput});
                     this.isProcessing = true;
                     
-                    axios.post('/api/conversation/', {message: this.userInput})
+                    axios.post('/ai/api/conversation/', {message: this.userInput}, {
+                        headers: {
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        }
+                    })
                         .then(response => {
                             this.messages.push({sender: 'ai', text: response.data.response});
                             this.isProcessing = false;
@@ -91,6 +95,20 @@
                     this.$nextTick(() => {
                         this.$refs.chatContainer.scrollTop = this.$refs.chatContainer.scrollHeight;
                     });
+                },
+                getCookie(name) {
+                    let cookieValue = null;
+                    if (document.cookie && document.cookie !== '') {
+                        const cookies = document.cookie.split(';');
+                        for (let i = 0; i < cookies.length; i++) {
+                            const cookie = cookies[i].trim();
+                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                break;
+                            }
+                        }
+                    }
+                    return cookieValue;
                 }
             }
         });

@@ -27,8 +27,10 @@ def conversation_api(request):
         data = json.loads(request.body)
         user_message = data.get('message', '')
         
-        # Here you would process the user's message and generate an AI response
-        # For now, we'll just echo the message back
-        ai_response = f"You said: {user_message}"
+        # Always respond with "hello"
+        ai_response = "hello"
         
         return JsonResponse({'response': ai_response})
+    
+    # Handle GET requests or other methods
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
