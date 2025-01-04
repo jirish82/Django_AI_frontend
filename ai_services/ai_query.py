@@ -1,6 +1,8 @@
 from poe_api_wrapper import AsyncPoeApi
 import asyncio
 import json
+from duckduckgo_search import DDGS
+import threading
 
 tokens = {
     'p-b': 'j_z0wVswlfUC63DA9IK9yg%3D%3D', 
@@ -13,9 +15,14 @@ async def query_ai(message, file_paths=None, online_search=False):
     if online_search:
         search_query = await get_search_query(client, message)
         print(f"Search query: {search_query}")
+        search_results = perform_ddg_search(search_query)
+        print("Search Results:")
+        for result in search_results:
+            print(json.dumps(result, indent=2))
     
     response = ""
-    kwargs = {"bot": "Claude-3-Opus", "message": message}
+    #kwargs = {"bot": "Claude-3-Opus", "message": message}
+    kwargs = {"bot": "Claude-3-Sonnet", "message": message} #lets just use sonnet for the full response while debugging
     if file_paths:
         kwargs["file_path"] = file_paths
     async for chunk in client.send_message(**kwargs):
@@ -47,5 +54,21 @@ Return only the search query, without any explanation or additional text.
     
     return search_query.strip()
 
+def perform_ddg_search(query):
+    with DDGS() as ddgs:
+        results = list(ddgs.text(
+            query,
+            region='wt-wt',
+            safesearch='moderate',
+            timelimit='m24',  # Last 24 months (2 years)
+            max_results=5
+        ))
+    return results
+
 def query_ai_sync(message, file_paths=None, online_search=False):
-    return asyncio.run(query_ai(message, file_paths, online_search))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(query_ai(message, file_paths, online_search))
+    finally:
+        loop.close()
