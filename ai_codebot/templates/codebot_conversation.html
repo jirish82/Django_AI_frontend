@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Conversation</title>
+    <title>Codebot</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
@@ -42,7 +42,7 @@
 </head>
 <body>
     <div id="app">
-        <h1>AI Conversation</h1>
+        <h1>Codebot</h1>
         <a href="{% url 'codebot_logout' %}">Logout</a>
         <div class="chat-container" ref="chatContainer">
             <div v-for="(message, index) in messages" :key="index" :class="['message', message.sender === 'user' ? 'user-message' : 'ai-message']">
