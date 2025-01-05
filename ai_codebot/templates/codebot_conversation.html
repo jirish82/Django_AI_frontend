@@ -7,125 +7,154 @@
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css" />
     <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
         #app {
-            max-width: 800px;
-            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
             padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            text-align: center;
+        }
+        #logout-link {
+            text-align: right;
+            margin-bottom: 10px;
+        }
+        #terminal-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #terminal {
-            width: 100%;
-            height: 400px;
-            background-color: black;
+            width: 90%;
+            height: 90%;
+            max-width: 1200px;
+            max-height: 800px;
         }
-        .input-container {
-            display: flex;
-            margin-top: 10px;
-        }
-        #user-input {
-            flex-grow: 1;
-            margin-right: 10px;
+        @media (max-width: 768px) {
+            #terminal {
+                width: 100%;
+                height: 100%;
+                max-width: none;
+                max-height: none;
+            }
         }
     </style>
 </head>
 <body>
     <div id="app">
         <h1>Codebot Terminal</h1>
-        <a href="{% url 'codebot_logout' %}">Logout</a>
-        <div id="terminal"></div>
-        <div class="input-container">
-            <input type="text" id="user-input" v-model="userInput" @keyup.enter="sendMessage" placeholder="Type your message...">
-            <button @click="sendMessage">Send</button>
+        <div id="logout-link">
+            <a href="{% url 'codebot_logout' %}">Logout</a>
+        </div>
+        <div id="terminal-container">
+            <div id="terminal"></div>
         </div>
     </div>
     <script>
-        new Vue({
-            el: '#app',
-            data: {
-                terminal: null,
-                currentLine: '',
-                isProcessing: false
+    new Vue({
+        el: '#app',
+        data: {
+            terminal: null,
+            fitAddon: null,
+        },
+        mounted() {
+            this.initializeTerminal();
+        },
+        methods: {
+            initializeTerminal() {
+                this.terminal = new Terminal({
+                    cursorBlink: true,
+                    theme: {
+                        background: '#000000',
+                        foreground: '#ffffff'
+                    },
+                    fontSize: 14,
+                    fontFamily: 'Consolas, "Courier New", monospace',
+                    letterSpacing: 0,
+                    lineHeight: 1.2
+                });
+                this.fitAddon = new FitAddon.FitAddon();
+                this.terminal.loadAddon(this.fitAddon);
+                this.terminal.open(document.getElementById('terminal'));
+                this.fitAddon.fit();
+
+                window.addEventListener('resize', () => this.fitAddon.fit());
+
+                this.terminal.writeln('Welcome to Codebot Terminal. Type your message and press Enter.');
+                this.terminal.write('> ');
+
+                this.terminal.onKey(({ key, domEvent }) => {
+                    const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+
+                    if (domEvent.keyCode === 13) { // Enter key
+                        this.sendMessage();
+                    } else if (domEvent.keyCode === 8) { // Backspace
+                        if (this.terminal._core.buffer.x > 2) {
+                            this.terminal.write('\b \b');
+                        }
+                    } else if (printable) {
+                        this.terminal.write(key);
+                    }
+                });
+
+                this.terminal.focus();
             },
-            mounted() {
-                this.initializeTerminal();
+            sendMessage() {
+                const line = this.terminal._core.buffer.lines.get(this.terminal._core.buffer.ybase + this.terminal._core.buffer.y).translateToString().slice(2);
+                if (line.trim() === '') return;
+
+                this.terminal.writeln('');
+                this.terminal.write('Processing...');
+
+                axios.post('/codebot/api/conversation/', {
+                    message: line
+                }, {
+                    headers: {
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    }
+                })
+                .then(response => {
+                    this.terminal.writeln('\r' + ' '.repeat('Processing...'.length));
+                    this.terminal.writeln('\r\nCodebot: ' + response.data.response.replace(/\n/g, '\r\n         '));
+                    this.terminal.write('\r\n> ');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    this.terminal.writeln('\r\nError occurred while processing your request.');
+                    this.terminal.write('\r\n> ');
+                });
             },
-            methods: {
-                initializeTerminal() {
-                    this.terminal = new Terminal({
-                        cursorBlink: true,
-                        theme: {
-                            background: '#000000',
-                            foreground: '#ffffff'
-                        }
-                    });
-                    this.terminal.open(document.getElementById('terminal'));
-                    this.terminal.writeln('Welcome to Codebot Terminal. Type your message and press Enter.');
-                    this.terminal.write('> ');
-        
-                    this.terminal.onKey(({ key, domEvent }) => {
-                        const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
-        
-                        if (domEvent.keyCode === 13) { // Enter key
-                            this.sendMessage();
-                        } else if (domEvent.keyCode === 8) { // Backspace
-                            if (this.currentLine.length > 0) {
-                                this.currentLine = this.currentLine.slice(0, -1);
-                                this.terminal.write('\b \b');
-                            }
-                        } else if (printable) {
-                            this.currentLine += key;
-                            this.terminal.write(key);
-                        }
-                    });
-        
-                    this.terminal.focus();
-                },
-                sendMessage() {
-                    if (this.currentLine.trim() === '' || this.isProcessing) return;
-        
-                    this.terminal.writeln('');
-                    this.isProcessing = true;
-                    this.terminal.write('Processing...');
-        
-                    axios.post('/codebot/api/conversation/', {
-                        message: this.currentLine
-                    }, {
-                        headers: {
-                            'X-CSRFToken': this.getCookie('csrftoken')
-                        }
-                    })
-                    .then(response => {
-                        this.terminal.writeln('\r' + ' '.repeat('Processing...'.length));
-                        this.terminal.writeln('\r\nCodebot: ' + response.data.response.replace(/\n/g, '\r\n         '));
-                        this.isProcessing = false;
-                        this.terminal.write('\r\n> ');
-                        this.currentLine = '';
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        this.terminal.writeln('\r\nError occurred while processing your request.');
-                        this.isProcessing = false;
-                        this.terminal.write('\r\n> ');
-                        this.currentLine = '';
-                    });
-                },
-                getCookie(name) {
-                    let cookieValue = null;
-                    if (document.cookie && document.cookie !== '') {
-                        const cookies = document.cookie.split(';');
-                        for (let i = 0; i < cookies.length; i++) {
-                            const cookie = cookies[i].trim();
-                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                                break;
-                            }
+            getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
                         }
                     }
-                    return cookieValue;
                 }
+                return cookieValue;
             }
-        });
+        }
+    });
     </script>
 </body>
 </html>
