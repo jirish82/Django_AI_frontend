@@ -1,6 +1,7 @@
 import os
 import pathspec
 import chardet
+import re
 
 def read_gitignore(root_path):
     gitignore_path = os.path.join(root_path, '.gitignore')
@@ -33,16 +34,20 @@ def read_file_content(file_path):
 
 def simplify_content(content, file_path):
     if file_path.endswith('.py'):
-        lines = content.split('\n')
-        simplified = []
-        for line in lines:
-            if line.startswith(('import ', 'from ', 'class ', 'def ')):
-                simplified.append(line)
-        return '\n'.join(simplified)
+        # Remove Django's docstring comments with djangoproject.com URLs
+        content = re.sub(r'"""[\s\S]*?https://docs\.djangoproject\.com/[\s\S]*?"""', '', content)
+        
+        # Remove empty lines that might be left after removing the docstring
+        content = '\n'.join(line for line in content.split('\n') if line.strip())
+        
+        # For settings.py, remove comments starting with #
+        if os.path.basename(file_path) == 'settings.py':
+            content = '\n'.join(line for line in content.split('\n') if not line.strip().startswith('#'))
+        
     elif file_path.endswith('.html'):
         return '\n'.join(line for line in content.split('\n') if line.strip() and not line.strip().startswith(('<!--', '//')))
-    else:
-        return content
+    
+    return content
 
 def scan_project(root_path, output_file):
     gitignore_spec = read_gitignore(root_path)
@@ -52,9 +57,6 @@ def scan_project(root_path, output_file):
             dirs[:] = [d for d in dirs if d not in {'.git', 'venv'}]
 
             rel_path = os.path.relpath(root, root_path)
-            if rel_path != '.' and not should_ignore(rel_path, gitignore_spec):
-                out_file.write(f"\nDirectory: {rel_path}\n")
-                out_file.write('------\n')
 
             for file in files:
                 file_path = os.path.join(root, file)
