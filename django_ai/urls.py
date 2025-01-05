@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
+    path('codebot/', include('ai_codebot.urls')),
     path('admin/', admin.site.urls),
     path('ai/', include('ai_conversation.urls')),
 ]
