@@ -3,6 +3,9 @@ import pathspec
 import chardet
 import re
 
+# Array of folder names to ignore
+IGNORED_FOLDERS = ["ai_conversation", "jobs"]
+
 def read_gitignore(root_path):
     gitignore_path = os.path.join(root_path, '.gitignore')
     if os.path.exists(gitignore_path):
@@ -13,6 +16,8 @@ def read_gitignore(root_path):
 
 def should_ignore(path, gitignore_spec):
     if path.startswith(('.git', 'venv')) or path == 'scan_project.py' or '__pycache__' in path:
+        return True
+    if any(folder in path for folder in IGNORED_FOLDERS):
         return True
     if gitignore_spec:
         return gitignore_spec.match_file(path)
@@ -54,7 +59,7 @@ def scan_project(root_path, output_file):
 
     with open(output_file, 'w', encoding='utf-8') as out_file:
         for root, dirs, files in os.walk(root_path):
-            dirs[:] = [d for d in dirs if d not in {'.git', 'venv'}]
+            dirs[:] = [d for d in dirs if d not in {'.git', 'venv'} and d not in IGNORED_FOLDERS]
 
             rel_path = os.path.relpath(root, root_path)
 
